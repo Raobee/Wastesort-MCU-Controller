@@ -57,6 +57,14 @@ void Measure_Distance(unsigned int SensorId){
   
 }
 
+void uploadSensor(){
+  char uploadjson[256] = "";
+  sprintf(uploadjson,"{\"type\":\"sensor\",\"sensors\":[%f,%f,%f,%f]}",Sensor_Result[0],Sensor_Result[1],Sensor_Result[2],Sensor_Result[3]);
+  if(Serial.availableForWrite()){
+    Serial.println(uploadjson);
+  }
+}
+
 void handleSerial(String json)
 {
   DynamicJsonBuffer serialargsbuf;
@@ -67,13 +75,13 @@ void handleSerial(String json)
     {
       currerentType = serialargs["type"].as<int>();
     }
-    if(serialargs.containsKey("angel1"))
+    if(serialargs.containsKey("angle1"))
     {
-      servoAngle[0] = serialargs["angel1"].as<int>();
+      servoAngle[0] = serialargs["angle1"].as<int>();
     }
-    if(serialargs.containsKey("angel2"))
+    if(serialargs.containsKey("angle2"))
     {
-      servoAngle[1] = serialargs["angel2"].as<int>();
+      servoAngle[1] = serialargs["angle2"].as<int>();
     }
   }
 }
@@ -201,12 +209,13 @@ void loop() {
       */
   } while ( u8g2.nextPage() );
 
-  //距离上次检测超过3S则检测传感器
+  //距离上次检测超过3S则检测传感器并上报
   if((millis()-lastCheckSensor)>=3000){
     Measure_Distance(1);
     Measure_Distance(2);
     Measure_Distance(3);
     Measure_Distance(4);
+    uploadSensor();
     lastCheckSensor = millis();
   }
 
