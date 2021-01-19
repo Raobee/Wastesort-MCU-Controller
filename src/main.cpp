@@ -45,11 +45,11 @@ unsigned long lastCheckSensor = 0;
 
 void Measure_Distance(unsigned int SensorId){
   digitalWrite(Sensor_Trig[SensorId-1],HIGH);
-  delayMicroseconds(10);
+  delayMicroseconds(20);
   digitalWrite(Sensor_Trig[SensorId-1],LOW);
-  float measure_temp=0;
-  measure_temp = float(pulseIn(Sensor_Echo, HIGH, 1000)); //存储回波等待时间，在80MHz时不超过0.05秒
-  if(measure_temp <= 0 || measure_temp >=100){
+  unsigned long measure_temp=0;
+  measure_temp = pulseIn(Sensor_Echo, HIGH, 10000); //存储回波等待时间，不超过0.01秒
+  if(measure_temp <= 0 || measure_temp >=10000){
     Sensor_Result[SensorId-1] = 0; //读取错误，数据继续储存为0
   }else{
     Sensor_Result[SensorId-1] = (measure_temp * 17 )/1000; //将计算后得到的正确结果写入记录数组
@@ -57,11 +57,12 @@ void Measure_Distance(unsigned int SensorId){
   
 }
 
-void uploadSensor(){
-  char uploadjson[256] = "";
-  sprintf(uploadjson,"{\"type\":\"sensor\",\"sensors\":[%f,%f,%f,%f]}",Sensor_Result[0],Sensor_Result[1],Sensor_Result[2],Sensor_Result[3]);
+void uploadAllData(){
+  //数据格式: Alldata:类型,角度1,角度2,距离1,距离2,距离3,距离4
+  char uploaddata[256] = "";
+  sprintf(uploaddata,"Alldata:%d,%d,%d,%.1f,%.1f,%.1f,%.1f\r\n",currerentType,servoAngle[0],servoAngle[1],Sensor_Result[0],Sensor_Result[1],Sensor_Result[2],Sensor_Result[3]);
   if(Serial.availableForWrite()){
-    Serial.println(uploadjson);
+    Serial.print(uploaddata);
   }
 }
 
@@ -83,6 +84,7 @@ void handleSerial(String json)
     {
       servoAngle[1] = serialargs["angle2"].as<int>();
     }
+    uploadAllData();
   }
 }
 
@@ -124,36 +126,25 @@ void setup() {
   u8g2.setFontDirection(0);
   ////////////////////////////////
   u8g2.sendBuffer();
-
-  u8g2.firstPage(); //Print static info to oled screen
-  do {
-    u8g2.setCursor(0,15);
-    u8g2.print("Servo-1:");
-    u8g2.setCursor(0,30);
-    u8g2.print("Servo-2:");
-    u8g2.setCursor(0,45);
-    u8g2.print("Sensor-Result(cm):");
-  } while ( u8g2.nextPage() );
-
-
-
 }
 
 void loop() {
   if(Serial.available())
   {
-    delay(100); // 等待数据传完
-    SerialJson = Serial.readString();
+    SerialJson = "";
+    while (Serial.available() > 0)  
+    {
+        SerialJson += char(Serial.read());
+        delay(1);
+    }
     handleSerial(SerialJson);
   }
-  delay(50);
   if(currerentType&&!startActionTime)
   {
     Serial.println(String("Change type -> "+ String(currerentType)));
     startActionTime = millis();
     Serial.println(startActionTime);
   }
-
   if(startActionTime)
   {
     if(millis()-startActionTime<=2000)
@@ -177,21 +168,28 @@ void loop() {
   servos[0].writeMicroseconds(500+2000*servoAngle[0]/270);
   servos[1].writeMicroseconds(500+2000*servoAngle[1]/270);
 
-
   u8g2.firstPage(); //Print servo info to oled screen
   do {
-    u8g2.setCursor(64,15);
+    u8g2.setCursor(72,15);
+    u8g2.print(String("Time:")+String(millis()/1000));
+    u8g2.setCursor(0,15);
+    u8g2.print("Servo-1:");
+    u8g2.setCursor(0,30);
+    u8g2.print("Servo-2:");
+    u8g2.setCursor(0,45);
+    u8g2.print("Sensor-Result(cm):");
+    u8g2.setCursor(50,15);
     u8g2.print(String(servoAngle[0]));
-    u8g2.setCursor(64,30);
+    u8g2.setCursor(50,30);
     u8g2.print(String(servoAngle[1]));
     u8g2.setCursor(0,60);
-    u8g2.print(String(Sensor_Result[0]));
+    u8g2.print(String(int(Sensor_Result[0])));
     u8g2.setCursor(32,60);
-    u8g2.print(String(Sensor_Result[1]));
+    u8g2.print(String(int(Sensor_Result[1])));
     u8g2.setCursor(64,60);
-    u8g2.print(String(Sensor_Result[2]));
+    u8g2.print(String(int(Sensor_Result[2])));
     u8g2.setCursor(96,60);
-    u8g2.print(String(Sensor_Result[3]));
+    u8g2.print(String(int(Sensor_Result[3])));
 
     /*
       u8g2.setCursor(0,15);
@@ -208,16 +206,14 @@ void loop() {
       u8g2.print("PWM:"+String(500+2000*servoAngle[1]/270));
       */
   } while ( u8g2.nextPage() );
-
-  //距离上次检测超过3S则检测传感器并上报
-  if((millis()-lastCheckSensor)>=3000){
+  //距离上次检测超过1S则检测传感器并上报
+  if((millis()-lastCheckSensor)>=2000){
     Measure_Distance(1);
     Measure_Distance(2);
     Measure_Distance(3);
     Measure_Distance(4);
-    uploadSensor();
+    uploadAllData();
     lastCheckSensor = millis();
   }
-
 
 }
