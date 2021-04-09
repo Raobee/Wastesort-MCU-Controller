@@ -34,7 +34,7 @@ U8G2_SSD1306_128X64_NONAME_1_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
 Servo servos[2];
 String SerialJson;
 
-int servoAngle[2]={0,135};
+int servoAngle[2]={135,135};
 int currerentType = 0;
 unsigned long startActionTime = 0;
 
@@ -66,6 +66,74 @@ void uploadAllData(){
   }
 }
 
+
+void sort_servo_control(int type)
+{
+  if(!type)
+   return;
+  //屏幕显示
+  u8g2.firstPage(); //Print servo info to oled screen
+  do {
+    u8g2.setCursor(40,40);
+    u8g2.print(String("Type : ")+String(type));
+  } while ( u8g2.nextPage() );
+  if(type%2)
+  {
+    if(type-1)
+    {
+      if(servoAngle[0]!=135)
+      {
+        servoAngle[0] = 135;
+        servos[0].writeMicroseconds(500+2000*servoAngle[0]/270);
+        delay(1000);
+      }
+      servoAngle[1] = 195;
+      servos[1].writeMicroseconds(500+2000*servoAngle[1]/270);
+    }
+    else
+    {
+      if(servoAngle[0]!=135)
+      {
+        servoAngle[0] = 135;
+        servos[0].writeMicroseconds(500+2000*servoAngle[0]/270);
+        delay(1000);
+      }
+      servoAngle[1] = 75;
+      servos[1].writeMicroseconds(500+2000*servoAngle[1]/270);
+    }
+  }
+  else
+  {
+    if(type-2)
+    {
+      if(servoAngle[0]!=225)
+      {
+        servoAngle[0] = 225;
+        servos[0].writeMicroseconds(500+2000*servoAngle[0]/270);
+        delay(1000);
+      }
+      servoAngle[1] = 195;
+      servos[1].writeMicroseconds(500+2000*servoAngle[1]/270);
+    }
+    else
+    {
+      if(servoAngle[0]!=225)
+      {
+        servoAngle[0] = 225;
+        servos[0].writeMicroseconds(500+2000*servoAngle[0]/270);
+        delay(1000);
+      }
+      servoAngle[1] = 75;
+      servos[1].writeMicroseconds(500+2000*servoAngle[1]/270);
+    }
+  }
+  //延时
+  delay(2000);
+  servoAngle[1] = 135;
+  servos[1].writeMicroseconds(500+2000*servoAngle[1]/270);
+}
+
+
 void handleSerial(String json)
 {
   DynamicJsonBuffer serialargsbuf;
@@ -75,6 +143,7 @@ void handleSerial(String json)
     if(serialargs.containsKey("type"))
     {
       currerentType = serialargs["type"].as<int>();
+      sort_servo_control(currerentType);
     }
     if(serialargs.containsKey("angle1"))
     {
@@ -91,8 +160,10 @@ void handleSerial(String json)
 void setup() {
 
   // Servo init
-  servos[0].attach(Servor_Pin_1); 
+  servos[0].attach(Servor_Pin_1);
+  servos[0].writeMicroseconds(500+2000*servoAngle[0]/270);
   servos[1].attach(Servor_Pin_2); 
+  servos[1].writeMicroseconds(500+2000*servoAngle[1]/270);
 
   // Sensor init
   pinMode(Sensor_Trig[0], OUTPUT);
@@ -139,6 +210,9 @@ void loop() {
     }
     handleSerial(SerialJson);
   }
+
+
+  /*
   if(currerentType&&!startActionTime)
   {
     Serial.println(String("Change type -> "+ String(currerentType)));
@@ -162,7 +236,7 @@ void loop() {
       Serial.println(String("Change angle to default"));
     }
   }
-
+*/
 
   //Control servo's angle
   servos[0].writeMicroseconds(500+2000*servoAngle[0]/270);
